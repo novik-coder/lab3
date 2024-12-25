@@ -8,18 +8,42 @@ spring:
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/v1/users/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: userServiceCircuitBreaker
+                fallbackUri: "forward:/fallback"
+
         - id: reservation-service
           uri: lb://RESERVATION-SERVICE
           predicates:
             - Path=/api/v1/reservations/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: reservationServiceCircuitBreaker
+                fallbackUri: "forward:/fallback"
+
         - id: library-service
           uri: lb://LIBRARY-SERVICE
           predicates:
             - Path=/api/v1/libraries/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: libraryServiceCircuitBreaker
+                fallbackUri: "forward:/fallback"
+
         - id: rating-service
           uri: lb://RATING-SERVICE
           predicates:
             - Path=/api/v1/rating/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: ratingServiceCircuitBreaker
+                fallbackUri: "forward:/fallback"
+
 eureka:
   client:
     serviceUrl:
@@ -30,6 +54,7 @@ eureka:
 
 server:
   port: 8080
+
 management:
   endpoints:
     web:
