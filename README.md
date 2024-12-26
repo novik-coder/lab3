@@ -1,72 +1,61 @@
-# Лабораторная работа #3
+**容错性**
 
-![GitHub Classroom Workflow](../../workflows/GitHub%20Classroom%20Workflow/badge.svg?branch=master)
+**任务描述**  
+基于实验报告 #2，实现在系统中增加容错机制的功能。
 
-## Fault Tolerance
+**要求**  
+1. 在 Gateway Service 上为所有的读取操作实现 Circuit Breaker 模式。统计数据存储在内存中，如果系统连续 N 次没有响应，那么在第 N + 1 次请求时，直接返回 fallback，而不是发起请求。通过小的超时进行实际系统请求，检查其状态。
+   
+2. 在每个服务上创建一个特殊的端点 `GET /manage/health`，返回 200 OK，用于检查服务的可用性（在 Github Actions 的 `wait-script.sh` 脚本和 `test-script.sh` 测试中使用）。
 
-### Формулировка
-
-На базе [Лабораторной работы #2](https://github.com/bmstu-rsoi/lab2-template) реализовать механизмы, увеличивающие
-отказоустойчивость системы.
-
-### Требования
-
-1. На Gateway Service для _всех операций_ чтения реализовать паттерн Circuit Breaker. Накапливать статистику в памяти, и
-   если система не ответила N раз, то в N + 1 раз вместо запроса сразу отдавать fallback. Через небольшой timeout
-   выполнить запрос к реальной системе, чтобы проверить ее состояние.
-2. На каждом сервисе сделать специальный endpoint `GET /manage/health`, отдающий 200 ОК, он будет использоваться для
-   проверки доступности сервиса (в [Github Actions](.github/workflows/classroom.yml) в скрипте проверки готовности всех
-   сервисов [wait-script.sh](scripts/wait-script.sh) и в тестах [test-script.sh](scripts/test-script.sh)).
-   ```shell
+   请求示例：
+   ```
    "$path"/wait-for.sh -t 120 "http://localhost:$port/manage/health" -- echo "Host localhost:$port is active"
    ```
-4. В случае недоступности данных из некритичного источника (не основного), возвращается fallback-ответ. В зависимости от
-   ситуации, это может быть:
-    * пустой объект или массив;
-    * объект, с заполненным полем (`uid` или подобным), по которому идет связь с другой системой;
-    * default строка (если при этом не меняется тип переменной).
-5. В задании описаны две операции, изменяющие состояния нескольких систем. В случае недоступности одной из систем,
-   участвующих в этой операции, выполнить:
-    1. откат всей операции;
-    2. возвращать пользователю ответ об успешном завершении операции, а на Gateway Service поставить этот запрос в
-       очередь для повторного выполнения.
-6. Для автоматических прогонов тестов в файле [autograding.json](.github/classroom/autograding.json)
-   и [classroom.yml](.github/workflows/classroom.yml) заменить `<variant>` на ваш вариант.
-7. В [docker-compose.yml](docker-compose.yml) прописать сборку и запуск docker контейнеров.
-8. Код хранить на Github, для сборки использовать Github Actions.
-9. Каждый сервис должен быть завернут в docker.
-10. В classroom.yml дописать шаги на сборку, прогон unit-тестов.
 
-### Пояснения
+3. 当从非核心的数据源（非主数据源）获取数据失败时，返回 fallback 响应。根据具体情况，这些返回可以是：
+   - 空对象或数组；
+   - 带有已填充字段（如 uid 或类似字段）的对象，用于与其他系统的交互；
+   - 默认字符串（如果此时没有更改变量的类型）。
 
-1. Для локальной разработки можно использовать Postgres в docker.
-2. Схема взаимодействия сервисов остается как в [Лабораторной работы #2](https://github.com/bmstu-rsoi/lab2-template).
-3. Для реализации очереди можно использовать language native реализацию (например, BlockingQueue для Java), либо
-   какую-то готовую реализацию типа RabbitMQ, Redis, ZeroMQ и т.п. Крайне нежелательно использовать реляционную базу
-   данных как средство эмуляции очереди.
-4. Можно использовать внешнюю очередь или запускать ее в docker.
-5. Для проверки отказоустойчивости используется остановка и запуск контейнеров docker, это делает
-   скрипт [test-script.sh](scripts/test-script.sh). Скрипт нужно запускать из корня проекта, т.к. он обращается к папке
-   postman по вариантам.
-   ```shell
-   # запуск тестового сценария:
-   # * <variant> – номер варианта (v1 | v2 | v3 | v4 )
-   # * <service> – имя сервиса в Docker Compose
-   # * <port>    – порт, на котором запущен сервис
-   $ scripts/test-script.sh <variant> <service> <port>
-   ```
+4. 该任务描述了两个会改变多个系统状态的操作。如果参与这些操作的某个系统不可用，应该执行：
+   - 撤销整个操作；
+   - 返回用户操作成功完成的响应，并将此请求放入 Gateway Service 的队列中，等待重新执行。
 
-### Прием задания
+5. 对于自动化测试的执行，在 `autograding.json` 和 `classroom.yml` 文件中，将 `<variant>` 替换为你的具体任务编号。
 
-1. При получении задания у вас создается fork этого репозитория для вашего пользователя.
-2. После того как все тесты успешно завершатся, в Github Classroom на Dashboard будет отмечено успешное выполнение
-   тестов.
+6. 在 `docker-compose.yml` 文件中配置 Docker 容器的构建和启动。
 
-### Варианты заданий
+7. 代码需要存储在 Github 上，构建使用 Github Actions。
 
-Распределение вариантов заданий аналогично [ЛР #2](https://github.com/bmstu-rsoi/lab2-template).
+8. 每个服务都需要打包成 Docker 容器。
 
-1. [Flight Booking System](v1/README.md)
-2. [Hotels Booking System](v2/README.md)
-3. [Car Rental System](v3/README.md)
-4. [Library System](v4/README.md)
+9. 在 `classroom.yml` 文件中添加构建和执行单元测试的步骤。
+
+**说明**  
+- 本地开发中可以使用 Docker 中的 Postgres 数据库。
+- 服务间的交互方式保持与实验报告 #2 中一致。
+- 队列的实现可以使用本地语言的原生实现（例如，Java 中的 `BlockingQueue`），或者使用现成的队列实现，如 RabbitMQ、Redis、ZeroMQ 等。强烈不推荐使用关系型数据库来模拟队列。
+- 可以使用外部队列或在 Docker 中运行队列。
+- 容错性测试使用 Docker 容器的停止和启动，通过 `test-script.sh` 脚本实现。需要从项目根目录执行该脚本，因为它会根据任务编号访问 Postman 文件夹。
+
+**测试脚本示例：**  
+```
+# 启动测试场景：
+# * <variant> – 任务编号（v1 | v2 | v3 | v4）
+# * <service> – Docker Compose 中的服务名称
+# * <port>    – 服务运行的端口
+$ scripts/test-script.sh <variant> <service> <port>
+```
+
+**任务提交要求**  
+- 在你接受任务时，GitHub 上会为你的用户创建该仓库的 fork。
+- 所有测试成功执行后，GitHub Classroom 的 Dashboard 上会标记测试成功。
+
+**任务编号分配**  
+任务编号的分配与实验报告 #2 中的分配方式相同。
+
+- Flight Booking System（航班预订系统）
+- Hotels Booking System（酒店预订系统）
+- Car Rental System（汽车租赁系统）
+- Library System（图书馆系统）
